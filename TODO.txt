@@ -1,0 +1,3 @@
+[ ] Support for non-TLS connections (IMAP)
+[ ] Better configuration system
+[ ] ... Well, make it work

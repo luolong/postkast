@@ -1,0 +1,17 @@
+[package]
+name = "postkast"
+description = "Modern desktop email client"
+version = "0.1.0"
+authors = ["Roland Tepp <luolong@gmail.com>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+imap = "2.4.1"
+imap-proto = "0.10.2"
+native-tls = "0.2.7"
+config = "0.11.0"
+directories = "3.0.2"
+serde = { version = "1.0.125", features = ["derive"]}
+toml = "0.5.8"
