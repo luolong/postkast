@@ -1,33 +1,34 @@
 use std::net::{SocketAddr, ToSocketAddrs};
-use std::{env, io, vec};
+use std::{io, vec};
 
 use config::{Config, ConfigError, Environment, File};
 use directories::ProjectDirs;
 use serde::{Serialize, Deserialize};
-use std::ops::Deref;
 
 /// Default server name
 pub const DEFAULT_SERVER_NAME: &'static str = "default";
+
+/// Default server host
 pub const DEFAULT_SERVER_HOST: &'static str = "localhost";
 
 
 /// Default server port number for SMTP protocol
-pub const DEFAULT_SMTP_PORT: u16 = 25;
+pub const _DEFAULT_SMTP_PORT: u16 = 25;
 
 /// Default server port number for POP3 protocol
-pub const DEFAULT_POP3_PORT: u16 = 110;
+pub const _DEFAULT_POP3_PORT: u16 = 110;
 
 /// Default server port number for IMAP protocol
 pub const DEFAULT_IMAP_PORT: u16 = 143;
 
 /// Default server port number for SMTP protocol over secure (TLS) channel
-pub const DEFAULT_SMTP_TLS_PORT: u16 = 465;
+pub const _DEFAULT_SMTP_TLS_PORT: u16 = 465;
 
 /// Default server port number for POP3 protocol over secure (TLS) channel
-pub const DEFAULT_POP3_TLS_PORT: u16 = 995;
+pub const _DEFAULT_POP3_TLS_PORT: u16 = 995;
 
 /// Default server port number for IMAP protocol over secure (TLS) channel
-pub const DEFAULT_IMAP_TLS_PORT: u16 = 993;
+pub const _DEFAULT_IMAP_TLS_PORT: u16 = 993;
 
 /// Application settings configuration
 #[derive(Debug, Serialize, Deserialize)]
@@ -40,7 +41,6 @@ pub struct Settings {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Server {
     name: String,
-    smtp: Smtp,
     imap: Imap,
     credentials: Credentials,
 }
@@ -97,19 +97,11 @@ impl Settings {
 
     pub fn print_default() -> Result<(), ConfigError> {
         let mut default_server = Server::default();
-        default_server.with_name("GMail")
+        default_server.with_name(DEFAULT_SERVER_NAME)
             .with_imap_host_and_tls_port("imap.google.com", 993)
             .with_username_and_password("username", "password");
         let default_server = default_server;
         let default_settings = Settings { servers: vec![ default_server ]};
-
-        //let project_dirs = ProjectDirs::from("org", "postkast", "Postkast").ok_or(
-        //    ConfigError::Message("Cannot locate project directories".to_string()),
-        //)?;
-
-        //let preferences_dir = project_dirs.preference_dir();
-        //let path = preferences_dir.join("Settings.toml");
-        //println!("Storing default prefernces to {:?}", &path);
 
         let value = toml::Value::try_from(&default_settings).map_err(|err|
             ConfigError::Message(format!("Cannot convert default settings to TOML: {:?}", err))
@@ -134,7 +126,6 @@ impl Default for Server {
     fn default() -> Server {
         Server {
             name: DEFAULT_SERVER_NAME.to_string(),
-            smtp: Smtp::default(),
             imap: Imap::default(),
             credentials: Credentials::None,
         }
@@ -152,12 +143,7 @@ impl Server {
         &self.imap
     }
 
-    /// SMTP server configuration settings
-    pub fn smtp(&self) -> &Smtp {
-        &self.smtp
-    }
-
-    /// Server credentials 
+    /// Server credentials
     pub fn credentials(&self) -> &Credentials {
         &self.credentials
     }
@@ -169,23 +155,9 @@ impl Server {
         self
     }
 
-    pub fn with_imap(&mut self, imap: Imap) -> &mut Self {
-        self.imap = imap;
-        self
-    }
-
-    pub fn with_imap_host(&mut self, host: &str) -> &mut Self {
-        self.imap.with_host(host);
-        self
-    }
-
-    pub fn with_imap_host_and_port(&mut self, host: &str, port: u16) -> &mut Self {
-        self.imap.with_host(host).with_port(port);
-        self
-    }
-
     pub fn with_imap_host_and_tls_port(&mut self, host: &str, port: u16) -> &mut Self {
-        self.imap.with_host(host).with_tls(Tls { port });
+        self.imap.host = host.to_string();
+        self.imap.tls = Some(Tls { port });
         self
     }
 
@@ -200,7 +172,7 @@ impl Server {
 impl Default for Imap {
     fn default() -> Self {
         Imap {
-            host: DEFAULT_SERVER_NAME.to_string(),
+            host: DEFAULT_SERVER_HOST.to_string(),
             port: DEFAULT_IMAP_PORT,
             tls: None,
         }
@@ -229,92 +201,6 @@ impl Imap {
     }
 }
 
-/// Public builder methods
-impl Imap {
-    /// Update server hostname
-    pub fn with_host(&mut self, host: &str) -> &mut Self {
-        self.host = host.to_string();
-        self
-    }
-
-    /// Set IMAP server port settings
-    pub fn with_port(&mut self, port: u16) -> &mut Self {
-        self.port = port;
-        self
-    }
-
-    /// Set TLS connection settings
-    pub fn with_tls(&mut self, tls: Tls) -> &mut Self {
-        self.tls = Some(tls);
-        self
-    }
-    
-    /// Set up with default IMAP connection settings
-    pub fn with_default_tls(&mut self) -> &mut Self {
-        self.tls = Some(Tls::default_imap());
-        self
-    }
-}
-
-impl Default for Smtp {
-    fn default() -> Self {
-        Smtp {
-            host: "localhost".to_string(),
-            port: DEFAULT_SMTP_PORT,
-            tls: None,
-        }
-    }
-}
-
-/// Public accessors
-impl Smtp {
-    /// Host name of the SMTP server
-    fn host(&self) -> &str {
-        &self.host
-    }
-
-    /// Port number of the SMTP server
-    fn port(&self) -> u16 {
-        if let Some(tls) = &self.tls {
-            tls.port
-        } else {
-            self.port
-        }
-    }
-
-    fn tls(&self) -> Option<&Tls> {
-        self.tls.as_ref()
-    }
-}
-
-/// Public builder methods
-impl Smtp {
-    /// Update server hostname
-    pub fn with_host(&mut self, host: &str) -> &mut Self {
-        self.host = host.to_string();
-        self
-    }
-
-    /// Set IMAP server port settings
-    pub fn with_port(&mut self, port: u16) -> &mut Self {
-        self.port = port;
-        self
-    }
-
-    /// Set TLS connection settings
-    pub fn with_tls(&mut self, tls: Tls) -> &mut Self {
-        self.tls = Some(tls);
-        self
-    }
-    
-    /// Set up with default IMAP connection settings
-    pub fn with_default_tls(&mut self) -> &mut Self {
-        self.tls = Some(Tls::default_smtp());
-        self
-    }
-}
-
-
 impl ToSocketAddrs for Imap {
     type Iter = vec::IntoIter<SocketAddr>;
 
@@ -327,19 +213,5 @@ impl ToSocketAddrs for Imap {
 impl Default for Credentials {
     fn default() -> Self {
         Credentials::None
-    }
-}
-
-impl Tls {
-    fn default_imap() -> Tls {
-        Tls {
-            port: DEFAULT_IMAP_TLS_PORT,
-        }
-    }
-
-    fn default_smtp() -> Tls {
-        Tls {
-            port: DEFAULT_SMTP_TLS_PORT,
-        }
     }
 }

@@ -6,18 +6,17 @@ extern crate serde;
 extern crate imap;
 extern crate imap_proto;
 
-use std::io::{Read, Write};
-use std::net::{TcpListener, TcpStream};
+use std::net::TcpStream;
 use std::str::{Utf8Error, from_utf8};
 
-use imap::{Client, Connection, Error::*, types::Fetch, Error};
+use imap::{Client, Error::*, Error};
 use native_tls::TlsStream;
+use imap_proto::types::Address;
+
 use settings::Credentials;
 
 use crate::settings::{Settings, Server};
-use std::fmt::{Display, Formatter};
-use std::ops::Deref;
-use imap_proto::types::Address;
+use ConnectionError::{EncodingError, ConfigError, ImapError};
 
 enum ConnectionError {
     // Error in the configuration
@@ -29,11 +28,15 @@ enum ConnectionError {
 }
 
 impl From<imap::Error> for ConnectionError {
-    fn from(e: Error) -> Self { ConnectionError::ImapError(e) }
+    fn from(e: Error) -> Self { ImapError(e) }
 }
 
 impl From<(imap::Error, Client<TlsStream<TcpStream>>)> for ConnectionError {
-    fn from(e: (Error, Client<TlsStream<TcpStream>>)) -> Self { ConnectionError::ImapError(e.0) }
+    fn from(e: (Error, Client<TlsStream<TcpStream>>)) -> Self { ImapError(e.0) }
+}
+
+impl From<Utf8Error> for ConnectionError {
+    fn from(e: Utf8Error) -> Self { EncodingError(e) }
 }
 
 fn print_addresses(head: &str, addresses: &Vec<Address>) {
@@ -54,6 +57,10 @@ fn print_addresses(head: &str, addresses: &Vec<Address>) {
 }
 
 fn list_inbox(server: &Server) -> Result<(), ConnectionError> {
+    println!("Connecting to server \"{:}\"", server.name());
+    println!("IMAP host: {:}", server.imap().host());
+    println!("     port: {:}", server.imap().port());
+
     let credentials = server.credentials();
     let name = server.name();
 
@@ -61,7 +68,7 @@ fn list_inbox(server: &Server) -> Result<(), ConnectionError> {
     let domain = server.host();
     let port = server.port();
     let client = server.tls()
-        .ok_or_else(|| ConnectionError::ConfigError(format!("No TLS configured for '{:}'", name)))
+        .ok_or_else(|| ConfigError(format!("No TLS configured for '{:}'", name)))
         .and_then(|_| {
             let tls = native_tls::TlsConnector::builder().build().unwrap();        
             imap::connect((domain, port), domain, &tls).map_err(ConnectionError::from)
@@ -72,7 +79,7 @@ fn list_inbox(server: &Server) -> Result<(), ConnectionError> {
     // to do anything useful with the e-mails, we need to log in
     let mut imap_session = match credentials {
         Credentials::UsernameAndPassword { username, password } => client.login(username, password)?,
-        Credentials::None => return Err(ConnectionError::ConfigError(format!("No username and password configured for '{:?}'", name))),
+        Credentials::None => return Err(ConfigError(format!("No username and password configured for '{:?}'", name))),
     };
 
     // we want to fetch the first email in the INBOX mailbox
@@ -124,10 +131,10 @@ fn main() {
             for server in settings.servers() {
                 match list_inbox(&server) {
                     Ok(_) => println!("---\nDone."),
-                    Err(ConnectionError::ImapError(No(msg))) => exit_with_message(1, format!("Invalid 0")),
-                    Err(ConnectionError::ImapError(e)) => eprintln!("{:?}", &e),
-                    Err(ConnectionError::ConfigError(e)) => eprintln!("CONFIG: {:?}", e),
-                    Err(ConnectionError::EncodingError(e)) => eprintln!("Encoding: {:?}", e),
+                    Err(ImapError(No(msg))) => exit_with_message(1, format!("Invalid {:}", msg)),
+                    Err(ImapError(e)) => eprintln!("{:?}", &e),
+                    Err(ConfigError(e)) => eprintln!("CONFIG: {:?}", e),
+                    Err(EncodingError(e)) => eprintln!("Encoding: {:?}", e),
                 }
             }
         }
