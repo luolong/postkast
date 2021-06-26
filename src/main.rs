@@ -23,7 +23,7 @@ enum ConnectionError {
     ConfigError(String),
     // Error from Imap
     ImapError(imap::Error),
-    // Utf8 encodnig error
+    // Utf8 encoding error
     EncodingError(Utf8Error)
 }
 

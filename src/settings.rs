@@ -11,7 +11,6 @@ pub const DEFAULT_SERVER_NAME: &'static str = "default";
 /// Default server host
 pub const DEFAULT_SERVER_HOST: &'static str = "localhost";
 
-
 /// Default server port number for SMTP protocol
 pub const _DEFAULT_SMTP_PORT: u16 = 25;
 

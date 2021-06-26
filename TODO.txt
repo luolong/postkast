@@ -1,3 +1,14 @@
 [ ] Support for non-TLS connections (IMAP)
 [ ] Better configuration system
+[ ] Try different IMAP servers
+    [ ] Google
+    [ ] Apple
+    [ ] Axigen
+    [ ] ...
+[ ] Support for IMAP features
+    [ ] Permanent Flags
+    [ ] ...
+[ ] Support for CalDAV
+[ ] Support for CardDAV
+[ ] Decide on GUI framework
 [ ] ... Well, make it work
